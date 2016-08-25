@@ -1,0 +1,2173 @@
+<!DOCTYPE html>
+
+<html>
+
+    <head>
+        <title>Car</title>
+        <script type="text/javascript" src="../libs/three.js"></script>
+        <script type="text/javascript" src="../libs/jquery.js"></script>
+        <script type="text/javascript" src="../libs/stats.js"></script>
+        <script type="text/javascript" src="../libs/dat.gui.js"></script>
+        <script type="text/javascript" src="../libs/OrbitControls.js"></script>
+        <script type="text/javascript" src="../libs/keypress.js"></script>
+        <script type="text/javascript" src="../libs/FlyControls.js"></script>
+        <script type="text/javascript" src="../libs/chroma.js"></script>
+        <script type="text/javascript" src="../libs/TrackballControls.js"></script>
+        <script type="text/javascript" src="../libs/physi.js"></script>
+
+        <script src="js/libs/stats.min.js"></script>
+        <style>
+            body{
+                /* set margin to 0 and overflow to hidden, to go fullscreen */
+                margin: 0;
+                overflow: hidden;
+            }
+        </style>
+    </head>
+    <body>
+
+        <div id="Stats-output">
+        </div>
+        <!-- Div which will hold the Output -->
+        <div id="WebGL-output">
+        </div>
+        <!-- Javascript code that runs our Three.js examples -->
+        <script type="text/javascript">
+            //setting many many variables so they can be accessed everywhere. 
+            var keys = [];
+            var floorChange = "wood";
+            var controlsCam;
+            var moveCar = false;
+            var upDown = true;
+            var doorOpen = false;
+            var plane;
+            var targ = [];
+            var backTop;
+            var lampTop = [];
+            var ballH = false;
+            var freedom = false;
+            var key, ballFlying;
+            var ballSpeedx = 0;
+            var ballSpeedz = 0;
+            var ballSpeedy = 0;
+            var doorRight, doorLeft;
+            var textScore = document.createElement('div');
+            var instructions = document.createElement('div');
+            var score = 0;
+            var carGroup = new THREE.Group();
+            var carBackGroup = new THREE.Group();
+            //setting multiple meshes so they can be used throughout the scene
+            //the reason there are so many similar meshes are because of the ability to 
+            //change the colour of different parts instead of all of them. 
+            var material = new THREE.MeshPhongMaterial({color: 0xff9900, specular: 0x888888});
+            var teleporterMaterial = new THREE.MeshNormalMaterial({color: 0xff9900, specular: 0x888888});
+            var material2 = new THREE.MeshPhongMaterial({color: 0xff9900, specular: 0x888888});
+            var materialWheel = new THREE.MeshPhongMaterial({color: 0x808080, specular: 0x888888});
+            //made the wheel normal, as it will take in the colours really well of the surronding glows
+            var wheelMat = new THREE.MeshNormalMaterial({color: 0x808080, specular: 0x888888});
+            var materialRoof = new THREE.MeshPhongMaterial({color: 0x8f8080, specular: 0x888888});
+            var materialBonnet = new THREE.MeshPhongMaterial({color: 0x8f8080, specular: 0x888888});
+            var materialBonnetSides = new THREE.MeshPhongMaterial({color: 0x8f8080, specular: 0x888888});
+            var materialDoor = new THREE.MeshPhongMaterial({color: 0x8f8080, specular: 0x888888});
+            var materialPanelBack = new THREE.MeshPhongMaterial({color: 0x8f8080, specular: 0x888888});
+            var materialside = new THREE.MeshPhongMaterial({color: 0x8f8080, specular: 0x888888});
+            //because i wanted a duller effect here
+            var materialArch = new THREE.MeshLambertMaterial({color: 0x8f8080, specular: 0x888888});
+            var materialFront = new THREE.MeshPhongMaterial({color: 0x8f8080, specular: 0x888888});
+            var headLightMaterial = new THREE.MeshPhongMaterial({color: 0xFFFFF0, specular: 0x888888});
+            var bottomMaterial = new THREE.MeshPhongMaterial({color: 0x555555, specular: 0x888888});
+            //different from the rest of the car, otherwise the glow looked stupid
+            var backMaterial = new THREE.MeshLambertMaterial({color: 0x555555, specular: 0x888888});
+
+            //setting arrays for the tyres and hubcaps
+            var torus = [];
+            var torus1 = [];
+            var wheelArch = [];
+            //the headlights for the car
+            var headLightLight, headLightLight2;
+            //no longer used but left in for examples
+            var cones = [];
+            var loader22 = new THREE.TextureLoader();
+            //the textures for the ball that will be created
+            var planetTexture = loader22.load("../assets/textures/planets/Earth.png");
+            var normalTexture = loader22.load("../assets/textures/planets/EarthNormal.png");
+            var sphereMaterial = new THREE.MeshPhongMaterial({map: planetTexture, bumpMap: normalTexture});
+
+
+            var sphere = new THREE.Mesh(new THREE.SphereGeometry(10, 15, 15), sphereMaterial);
+            var headLightCone = [];
+            //setting some of the main variables
+            //the speed of the car
+            var speed = 0;
+            var rot = 0;
+            var wheel;
+            //the backwards speed of the car
+            var speedBack = 0;
+            var camera, camTarg;
+            var headLights, headLights2;
+            var lampPostStaff = [];
+            var lampLight = [];
+            var lampTarget = [];
+            var lightGlow = [];
+            //the size of the scene
+            var limit = 300;
+            var teleporterCube;
+            var lightColor = "#ccffcc";
+            var light = new THREE.DirectionalLight(lightColor);
+            var bluePoint = [];
+            var tailLights = [];
+            var bluePointCar = new THREE.PointLight(0x0033ff, 3, 150);
+            cam = "aboveCar";
+            var groundMaterial = new THREE.MeshPhongMaterial({
+                color: 0x6C6C6C
+            });
+            var floorMaterial = new THREE.MeshPhongMaterial({
+                color: 0x6C6C6C
+            });
+            // once everything is loaded, we run our Three.js stuff.
+            $(function () {
+                var stats = initStats();
+                // create a scene, that will hold all our elements such as objects, cameras and lights.
+                var scene = new THREE.Scene();
+                //sets first cam
+                aboveCar();
+
+                // create a render and set the size
+                var renderer = new THREE.WebGLRenderer({alpha: true});
+                renderer.setClearColor(0xEEEEEE, 1.0);
+                //setting size based on window size.
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.shadowMap.enabled = true;
+                //setting the background colour to be black
+                renderer.setClearColor(0x000000);
+                //var orbitControls = new THREE.OrbitControls(camera);
+                //made a function to create the planes
+                function createPlane() {
+                    //setting ht plane to be a size based on the limit of a variable. this way 
+                    //if i change the size of the plane, all the walls and hit detection should change with it
+                    plane = new THREE.Mesh(new THREE.PlaneGeometry(limit * 2, limit * 2, 1, 1), floorMaterial);
+                    plane.rotation.x = -Math.PI / 2;
+                    plane.receiveShadow = true;
+                    scene.add(plane);
+
+                    var planeGeometry = new THREE.PlaneGeometry(limit * 2, limit * 2, 1, 1);
+                    //setting the walls
+                    var leftWall = new THREE.Mesh(planeGeometry, groundMaterial);
+                    leftWall.receiveShadow = true;
+
+                    // rotate and position the wall
+                    leftWall.position.x = 0;
+                    leftWall.position.y = 0;
+                    leftWall.position.z = -limit;
+                    scene.add(leftWall);
+
+                    var wallLeft = new THREE.Mesh(planeGeometry, groundMaterial);
+                    wallLeft.receiveShadow = true;
+
+                    // rotate and position the left wall
+                    wallLeft.rotation.y = -1 * Math.PI;
+                    wallLeft.position.x = 0;
+                    wallLeft.position.y = 0;
+                    wallLeft.position.z = limit;
+
+                    // add the left wall to the scene
+                    scene.add(wallLeft);
+
+                    var backWall = new THREE.Mesh(planeGeometry, groundMaterial);
+                    backWall.receiveShadow = true;
+
+                    // rotate and position the right wall
+                    backWall.rotation.y = -0.5 * Math.PI;
+                    backWall.position.x = limit;
+                    backWall.position.y = 0;
+                    backWall.position.z = 0;
+
+                    // add the right wall to the scene
+                    scene.add(backWall);
+                    var loader = new THREE.TextureLoader();
+                    //adding differnt textures to the walls and floor. 
+                    //this gives a more realistic look
+                    var wooden = loader.load("../assets/textures/general/wood-2.jpg");
+                    var stoneWall = loader.load("../assets/textures/ground/stone-wall1.jpg");
+                    //changing the repeat of the floor to be 7 by 7
+                    wooden.repeat.set(7, 7);
+                    wooden.wrapS = THREE.RepeatWrapping;
+                    wooden.wrapT = THREE.RepeatWrapping;
+                    wooden.bumpScale = 2;
+                    //adding bumscale to the textures
+                    floorMaterial.map = wooden;
+                    floorMaterial.bumpScale = 0.2;
+                    groundMaterial.bumpMap = stoneWall;
+                    groundMaterial.bumpScale = 2;
+                }
+                createPlane();
+                //function to create the main lights for scene.
+                function setLights() {
+                    //setting basic light to always be on scene
+                    var spotLight = new THREE.SpotLight(0xffffff);
+                    spotLight.position.set(0, 1000, 0);
+                    scene.add(spotLight);
+                    spotLight.shadow.mapSize.width = 1024;
+                    spotLight.shadow.mapSize.height = 1024;
+                    //changing it to be less bright
+                    spotLight.intensity = 0.3;
+                    spotLight.shadow.camera.near = 500;
+                    spotLight.shadow.camera.far = 1000;
+                    spotLight.shadow.camera.fov = 1;
+
+                    //setting changable light
+                    //this light can be turned on and off
+                    light.position.set(0, 20, 0);
+                    light.castShadow = true;
+                    light.shadowCameraNear = 2;
+                    light.shadowCameraFar = 1400;
+                    light.shadowCameraLeft = -700;
+                    light.shadowCameraRight = 700;
+                    light.shadowCameraTop = 280;
+                    light.shadowCameraBottom = -280;
+                    light.shadowMapHeight = 1024;
+                    light.shadowMapWidth = 1024;
+                    light.target = plane;
+                    light.distance = 700;
+                    light.intensity = 1;
+                    light.shadowDarkness = 0.5;
+                    scene.add(light);
+
+                    //glow in the corners. This gives a more dungeon feel
+                    for (var t = 0; t < 2; t++) {
+                        bluePoint[t] = new THREE.PointLight(0xd2ce71, 3, 150);//0x0033ff
+                        if (t === 0) {
+                            bluePoint[t].position.set(limit - 25, 5, limit - 25);
+                        }
+                        if (t === 1) {
+                            bluePoint[t].position.set(limit - 25, 5, -limit + 25);
+                        }
+                        bluePoint[t].intensity = 0;
+                        scene.add(bluePoint[t]);
+                    }
+                    //ambiLight.color.setRGB( 40 * 0.1, 40 * 0.1, 40 * 0.1 );
+                }
+                setLights();
+
+                //this teleporter function will be used to create an object that will move the car.
+                function teleporter() {
+                    //setting the geometry of the cube for it
+                    var geometry = new THREE.CubeGeometry(3, 50, 50, 1, 10, 10);
+                    //added a for loop that will randomise the colour of each of the faces of the cube
+                    //this gives a crazy look to it.
+                    for (var i = 0; i < geometry.faces.length; i++) {
+                        geometry.faces[ i ].color.setHSL(Math.random(), 0.5, 0.5);
+                    }
+                    //adding this using vertex colours.
+                    var material = new THREE.MeshBasicMaterial({vertexColors: THREE.FaceColors});
+
+                    teleporterCube = new THREE.Mesh(geometry, material);
+                    //teleporterCube = createMesh(new THREE.CubeGeometry(3, 50, 50));
+                    //var geom = new THREE.CubeGeometry(3, 50, 50);
+                    //teleporterCube = new THREE.Mesh(geom, mesh);
+                    teleporterCube.position.y = 250;
+                    //setting it against the wall
+                    teleporterCube.position.x = limit;
+                    teleporterCube.castShadow = true;
+
+                }
+                teleporter();
+                //adding the teleporter function
+                function addTeleporter() {
+                    //will just add the teleporter once the score has reached a certain limit
+                    scene.add(teleporterCube);
+                    teleporterCube.position.y = 10;
+                    teleporterCube.position.x = limit;
+                    teleporterCube.castShadow = true;
+                }
+
+                //the function that contains everything to do with the detail of the car.
+                function createCar() {
+                    //setting basic geometrys and setting the meshes.
+                    var geom = new THREE.CubeGeometry(24, 7, 14);
+                    var geometryRoof = new THREE.TorusGeometry(3, 1.5, 10, 30, 3);
+                    var geometryWindow = new THREE.CylinderGeometry(5, 5, 5, 25, 5, 5, 5, 2, 5);
+                    materialBonnet.side = THREE.DoubleSide;
+                    materialBonnetSides.side = THREE.DoubleSide;
+                    var roof = new THREE.Mesh(geometryRoof, materialRoof);
+                    var bonnet = new THREE.Mesh(geometryWindow, materialBonnet);
+                    var bonnetLeft = new THREE.Mesh(geometryWindow, materialBonnetSides);
+                    var bonnetLeft2 = bonnetLeft.clone();
+                    var bonnetRight = bonnetLeft.clone();
+                    var bonnetRight2 = bonnetLeft.clone();
+                    var materialWindow = new THREE.MeshPhongMaterial({color: 0x8f8080, specular: 0xFFFFFF});
+                    //making them doublesided means that they will be always visable
+                    materialRoof.side = THREE.DoubleSide;
+                    //scaling the object in this way, gives me a roof look
+                    roof.scale.set(1.5, 0.5, 5.5);
+                    roof.position.y = 18;
+                    roof.position.z = 3;
+                    roof.castShadow = true;
+
+                    //the function to create the back of the car
+                    function createBack() {
+                        //setting basic meshes and geometrys
+                        var geometryFront = new THREE.CylinderGeometry(4.5, 4.5, 14);
+                        // var geometryFront2 = new THREE.CylinderGeometry(4.5, 4.5,11);
+                        var backPanelLeft = new THREE.Mesh(geometryFront, materialPanelBack);
+                        //adding the panels to the car.
+                        backPanelLeft.castShadow = true;
+                        backPanelLeft.rotation.z = 1.6;
+                        backPanelLeft.rotation.x = 1.45;
+                        backPanelLeft.position.x = 9.5;
+                        backPanelLeft.position.z = 11.5;
+                        backPanelLeft.position.y = 10.5;
+                        backPanelLeft.castShadow = true;
+                        //again scaling the object gives me a nice look
+                        backPanelLeft.scale.set(0.2, 1, 1);
+                        //cloning the first panel, as I want the extact same on the other side
+                        var backPanelRight = backPanelLeft.clone();
+                        //repositing the object.
+                        backPanelRight.position.z = -8;
+                        backPanelRight.rotation.z = -1.58;
+                        backPanelRight.rotation.x = 1.7;
+                        backPanelRight.position.x = 9.5;
+                        backPanelRight.position.z = -5.25;
+                        backPanelRight.position.y = 10.5;
+                        backPanelRight.castShadow = true;
+                        //adding them both to the group that contains the back of the car.
+                        carBackGroup.add(backPanelLeft);
+                        carBackGroup.add(backPanelRight);
+                        //setting the tail lights for the car. 
+                        var geometryLight = new THREE.CubeGeometry(4, 10, 3);
+                        var tailLightMaterial = new THREE.MeshPhongMaterial({color: 0xBE2625});
+                        var tailLight = new THREE.Mesh(geometryLight, tailLightMaterial);
+                        //adding the tailLights to the back of the car
+                        headLightMaterial.side = THREE.DoubleSide;
+                        tailLight.position.x = 17;
+                        tailLight.position.z = -5.25;
+                        tailLight.position.y = 11;
+                        tailLight.scale.set(0.1, 0.5, 0.3);
+                        //cloning the first taillight and repositing it.
+                        var tailLight2 = tailLight.clone();
+                        tailLight.position.z = 11.5;
+                        //adding it to the group of the car.
+                        carBackGroup.add(tailLight);
+                        carBackGroup.add(tailLight2);
+
+                        //a for loop to actually make the light for the tailLights.
+                        //this will be a red glow
+                        for (var t = 0; t < 2; t++) {
+                            tailLights[t] = new THREE.PointLight(0xBE2625, 3, 50);//0x0033ff
+                            if (t === 0) {
+                                tailLights[t].position.set(27, 5, 7);
+                            }
+                            if (t === 1) {
+                                tailLights[t].position.set(27, 5, -3);
+                            }
+                            tailLights[t].intensity = 0.3;
+                            carBackGroup.add(tailLights[t]);
+                        }
+                        //another function to make more of the back.
+                        function createBottomAndBack() {
+                            //setting the variables for the back/
+                            var bot = new THREE.CubeGeometry(45, 1, 18);
+                            var backSize = new THREE.CubeGeometry(7, 1, 16.5);
+                            var bottom = new THREE.Mesh(bot, bottomMaterial);
+                            var back = new THREE.Mesh(backSize, backMaterial);
+                            //adding it to the group and setting posisting...
+                            backMaterial.side = THREE.DoubleSide;
+                            bottomMaterial.side = THREE.DoubleSide;
+                            bottom.position.x = -5.5;
+                            bottom.position.z = 3;
+                            bottom.position.y = 7;
+                            //setting it so it cast shadows and also recieve.
+                            bottom.recieveShadow = true;
+                            bottom.castShadow = true;
+                            back.recieveShadow = true;
+                            back.castShadow = true;
+                            carBackGroup.add(bottom);
+
+                            back.position.x = 16;
+                            back.position.z = 3.2;
+                            back.rotation.z = 1.6;
+                            back.position.y = 11;
+                            back.recieveShadow = true;
+                            back.castShadow = true;
+                            carBackGroup.add(back);
+                            //this is making a texture for the bottom of the car.
+                            //it will look like a metal floor.
+                            var loader = new THREE.TextureLoader();
+                            var metal = loader.load("../assets/textures/general/metal-floor-normal.jpg");
+                            metal.repeat.set(7, 7);
+                            metal.wrapS = THREE.RepeatWrapping;
+                            metal.wrapT = THREE.RepeatWrapping;
+                            metal.bumpScale = 2;
+                            bottomMaterial.map = metal;
+                            carBackGroup.add(bottom);
+                            //cloning the back of the car so it will be the same
+                            //adding it and rotating it. 
+                            backTop = back.clone();
+                            backTop.rotation.z = -3.15;
+                            backTop.position.x = 11;
+                            backTop.position.y = 14;
+                            backTop.scale.set(1.3, 0.1, 1);
+                            carBackGroup.add(backTop);
+                        }
+                        createBottomAndBack();
+                        //adding the back group to the main carGroup.
+                        carGroup.add(carBackGroup);
+                    }
+                    //running the function
+                    createBack();
+                    //function to create the windows of the car
+                    function createWindows() {
+                        //creating the group for the windows
+                        var carWindowGroup = new THREE.Group();
+                        //setting the specular for the window so its shiny
+                        materialWindow.specular = new THREE.Color(0x808080);
+                        //setting it to be almost seethrough
+                        materialWindow.opacity = 0.5;
+                        materialWindow.transparent = true;
+                        materialWindow.side = THREE.DoubleSide;
+
+                        //creating the window screen 
+                        var windowScreen = new THREE.Mesh(geometryWindow, materialWindow);
+                        //positing the windowscreen
+                        windowScreen.rotation.y = 3.7;
+                        windowScreen.scale.set(1.3, 3.1, 0.2);
+                        windowScreen.rotation.x = 1.58;
+                        windowScreen.position.y = 15.5;
+                        windowScreen.position.x = -8;
+                        windowScreen.position.z = 3;
+                        windowScreen.castShadow = true;
+                        carWindowGroup.add(windowScreen);
+                        //creating the back by cloning the windowscreen
+                        var backScreen = windowScreen.clone();
+                        //moving it
+                        backScreen.rotation.y = 1.1;
+                        backScreen.position.y += 1;
+                        backScreen.scale.set(0.6, 3, 0.2);
+                        backScreen.position.x = 5;
+                        carWindowGroup.add(backScreen);
+                        //adding the window group to the carGroup.
+                        carGroup.add(carWindowGroup);
+                    }
+                    createWindows();
+
+                    //the bonnet of the car.
+                    //its made of multiple different 
+                    function createBonnet() {
+                        //setting the group for the bonnet
+                        var carBonnetGroup = new THREE.Group();
+                        //just positing all of the bonnet pieces 
+                        //i've given it a muscle car style front
+                        bonnetLeft.rotation.y = 3.3;
+                        bonnetLeft.rotation.x = 1.58;
+                        bonnetLeft.position.y = 13;
+                        bonnetLeft.position.z = 3;
+                        bonnetLeft.position.x = -17.5;
+                        bonnetLeft.scale.set(2, 3.1, 0.2);
+                        bonnetLeft.castShadow = true;
+
+                        materialRoof.polygonOffset = true;
+                        materialRoof.polygonOffsetFactor = -0.1;
+
+                        bonnetRight.rotation.y = 3.3;
+                        bonnetRight.rotation.x = 2;
+                        bonnetRight.position.y = 12.3;
+                        bonnetRight.position.z = 10.4;
+                        bonnetRight.position.x = -19.75;
+                        bonnetRight.scale.set(2.5, 0.7, 0.2);
+                        bonnetRight.castShadow = true;
+
+                        bonnetRight2.rotation.y = 3.3;
+                        bonnetRight2.rotation.x = 1.7;
+                        bonnetRight2.position.y = 11.3;
+                        bonnetRight2.position.z = 13;
+                        bonnetRight2.position.x = -19.75;
+                        bonnetRight2.scale.set(2.5, 0.5, 0.2);
+                        bonnetRight2.castShadow = true;
+
+                        bonnetLeft.rotation.y = 3.3;
+                        bonnetLeft.rotation.x = 1.1;
+                        bonnetLeft.position.y = 12.3;
+                        bonnetLeft.position.z = -5;
+                        bonnetLeft.position.x = -19.75;
+                        bonnetLeft.scale.set(2.5, 0.7, 0.2);
+                        bonnetLeft.castShadow = true;
+
+                        bonnetLeft2.rotation.y = 3.3;
+                        bonnetLeft2.rotation.x = 1.5;
+                        bonnetLeft2.position.y = 11.3;
+                        bonnetLeft2.position.z = -7.5;
+                        bonnetLeft2.position.x = -19.75;
+                        bonnetLeft2.scale.set(2.5, 0.5, 0.2);
+                        bonnetLeft2.castShadow = true;
+
+                        bonnet.rotation.y = 3.3;
+                        bonnet.rotation.x = 1.58;
+                        bonnet.position.y = 13;
+                        bonnet.position.z = 3;
+                        bonnet.position.x = -19.5;
+                        bonnet.scale.set(2.5, 3.1, 0.2);
+                        bonnet.castShadow = true;
+
+                        //setting the front of the car, the grate
+                        var geometryFront = new THREE.CylinderGeometry(5, 5, 5, 25, 5, 5, 5, 2, 5);
+                        var frontCar = new THREE.Mesh(geometryFront, materialFront);
+                        //positing it
+                        materialFront.side = THREE.DoubleSide;
+                        frontCar.rotation.y = 3;
+                        frontCar.rotation.x = 1.58;
+                        frontCar.position.x = -29;
+                        frontCar.position.z = 2.8;
+                        frontCar.position.y = 2.5;
+                        //scaling it
+                        frontCar.scale.set(0.1, 3.8, 2);
+                        //adding all of the created bonnet pieces to the bonnet group
+                        carBonnetGroup.add(bonnetLeft2);
+                        carBonnetGroup.add(bonnetLeft);
+                        carBonnetGroup.add(bonnetRight2);
+                        carBonnetGroup.add(bonnet);
+                        carBonnetGroup.add(bonnetLeft);
+                        carBonnetGroup.add(bonnetRight);
+                        carBonnetGroup.add(frontCar);
+                        carGroup.add(carBonnetGroup);
+                    }
+                    createBonnet();
+                    // var mesh = createMesh(new THREE.CylinderGeometry(20, 20, 20));
+                    //creating the doors of the car.
+                    //the important thing about this function is that one of the doors can open.
+                    function createDoors() {
+                        //setting the doors
+                        //i've not cloned these doors as they are curved in a way that wouldn't look good
+                        //if all I did was rotate them instead
+                        var geometryFront = new THREE.CylinderGeometry(4, 4.5, 11);
+                        var geometryFront2 = new THREE.CylinderGeometry(4.5, 4, 11);
+                        doorLeft = new THREE.Mesh(geometryFront, materialDoor);
+                        doorRight = new THREE.Mesh(geometryFront2, materialDoor);
+                        //setting the orbit group for the door that will be able to move. 
+                        var orbitGroup = new THREE.Object3D();
+                        carGroup.add(orbitGroup);
+
+                        // create a little orbit car door which will rotate
+                        var littleOrbitGroup = new THREE.Object3D();
+                        var x = 5;
+                        var y = 5;
+                        var z = 5;
+                        //positing the little orbit group on the car
+                        littleOrbitGroup.position.x = x;
+                        littleOrbitGroup.position.y = y;
+                        littleOrbitGroup.position.z = z;
+                        orbitGroup.add(littleOrbitGroup);
+
+                        materialDoor.side = THREE.DoubleSide;
+                        materialDoor.castShadow = true;
+                        //rotating the door and positing it so it actually fits in the car
+                        doorLeft.rotation.z = 1.63;
+                        doorLeft.rotation.x = 1.45;
+                        doorLeft.position.x = -8;
+                        doorLeft.position.z = 11.3 - z;
+                        doorLeft.position.y = 10.5 - y;
+                        doorLeft.scale.set(0.2, 1, 1);
+
+                        //the same with the second door
+                        doorRight.rotation.z = -1.58;
+                        doorRight.rotation.x = 1.7;
+                        doorRight.position.x = -8;
+                        doorRight.position.z = -5.25 - z;
+                        doorRight.position.y = 10.5 - y;
+                        doorRight.scale.set(0.2, 1, 1);
+
+                        littleOrbitGroup.add(doorLeft);
+                        littleOrbitGroup.add(doorRight);
+                    }
+                    createDoors();
+                    //creating the sides of the car that connect it all together. 
+                    function createSides() {
+                        var carSideGroup = new THREE.Group();
+                        //same as the function above, it's easier to create a new 
+                        //geometry instead of cloning
+                        var geometryFront = new THREE.CylinderGeometry(2, 4.4, 20);
+                        var geometryFront2 = new THREE.CylinderGeometry(4.4, 2, 20);
+                        var sideLeft = new THREE.Mesh(geometryFront, materialside);
+                        var sideRight = new THREE.Mesh(geometryFront2, materialside);
+                        //adding and rotating the sides so they fit nicely on the car
+                        materialside.side = THREE.DoubleSide;
+                        sideLeft.rotation.z = 1.52;
+                        sideLeft.rotation.x = 1.34;
+                        sideLeft.rotation.y = 0.1;
+                        sideLeft.position.x = -18;
+                        sideLeft.position.z = 11.4;
+                        sideLeft.position.y = 10;
+                        sideLeft.scale.set(0.3, 1, 1);
+
+
+                        sideRight.rotation.z = -1.58;
+                        sideRight.rotation.x = 1.86;
+                        sideRight.rotation.y = 0.1;
+                        sideRight.position.x = -18;
+                        sideRight.position.z = -5.25;
+                        sideRight.position.y = 10;
+                        sideRight.scale.set(0.3, 1, 1);
+                        //adding them to the groups.
+                        carSideGroup.add(sideLeft);
+                        carSideGroup.add(sideRight);
+                        carGroup.add(carSideGroup);
+                    }
+                    createSides();
+                    //headlights for the car, this includes all lighting and the actualy 3d object
+                    function createHeadLights() {
+                        //setting the 3d object to be a square
+                        var geometryLight = new THREE.CubeGeometry(10, 10, 10);
+                        var carHeadLightGroup = new THREE.Group();
+
+                        headLights = new THREE.Mesh(geom, headLightMaterial);
+
+                        //positing it
+                        headLightMaterial.side = THREE.DoubleSide;
+                        headLights.position.x = -28;
+                        headLights.position.z = -4.4;
+                        headLights.position.y = 11;
+                        //scaling the orginal geometry
+                        headLights.scale.set(0.1, 0.5, 0.3);
+                        //cloned the first one
+                        headLights2 = headLights.clone();
+                        headLights2.position.z = 10.3;
+                        //adding it to the group for the headlights
+                        carHeadLightGroup.add(headLights);
+                        carHeadLightGroup.add(headLights2);
+
+                        //here are the actual lights for the headlights
+                        //they can be turned on/off.
+                        //setting to be spotlights
+                        headLightLight = new THREE.SpotLight(0xFFFFF5, 3, 150);
+                        headLightLight2 = new THREE.SpotLight(0xFFFFF5, 3, 150);
+                        //making them able to cast shadows
+                        //doing it in this way makes the shadows look like they should
+                        headLightLight.shadowDarkness = 1;
+                        headLightLight2.shadowDarkness = 1;
+                        headLightLight.shadowCameraVisible = true;
+                        headLightLight2.shadowCameraVisible = true;
+                        headLightLight.shadowCameraNear = 4;
+                        headLightLight.shadowCameraFar = 1000;
+                        headLightLight.shadowCameraFov = 1000;
+                        headLightLight2.shadowCameraNear = 4;
+                        headLightLight2.shadowCameraFar = 1000;
+                        headLightLight2.shadowCameraFov = 1000;
+                        //setting the lights to have a distance because I dont want them to be
+                        //going on forever
+                        headLightLight.distance = 250;
+                        headLightLight2.distance = 250;
+                        //setting the lights to be off to start the scene 
+                        headLightLight.exponent = 2;
+                        headLightLight2.exponent = 2;
+                        headLightLight2.intensity = 0;
+                        headLightLight.intensity = 0;
+                        //pointLights for the headlights
+                        //I've added pointlights as well as spotlights as the pointlight gives a nice 
+                        //glow effect around the front of the car, and the spotlights give the actual
+                        //light. using both makes a more realistic scene
+                        //a small for loop that will set both pointlights
+                        for (var t = 0; t < 2; t++) {
+                            lightGlow[t] = new THREE.PointLight(0xFFFF00, 3, 150);
+                            if (t === 0) {
+                                lightGlow[t].position.set(-32, 11, -4.4);
+                            }
+                            if (t === 1) {
+                                lightGlow[t].position.set(-32, 11, 10.3);
+                            }
+                            //setting the start to be 0
+                            lightGlow[t].intensity = 0;
+                            carHeadLightGroup.add(lightGlow[t]);
+                        }
+                        carHeadLightGroup.add(headLightLight);
+                        //here I'm creating a target that the pointlights 
+                        //will look at. setting a target like this means that the lights will
+                        //always look at the floor.
+                        targ[1] = new THREE.Object3D();
+                        targ[1].position.set(-50, 5, 2.8);
+                        carGroup.add(targ[1]);
+                        headLightLight.target = targ[1];
+
+                        headLightLight.position.set(-30, 15, 10.2);
+                        headLightLight2.position.set(-30, 15, -4.4);
+                        carHeadLightGroup.add(headLightLight2);
+
+                        targ[2] = new THREE.Object3D();
+                        targ[2].position.set(-50, 5, -4.4);
+                        carHeadLightGroup.add(targ[2]);
+                        headLightLight2.target = targ[2];
+
+                        camTarg = new THREE.Object3D();
+
+                        camTarg.position.set(-80, 15, -0.8);
+                        carHeadLightGroup.add(camTarg);
+//here is some code that made a cone shape infront of the car before i used the pointlights
+//i removed this because it looked rather bad.
+                        var materialLight = new THREE.MeshPhongMaterial({transparent: true, opacity: 0.5, color: 0xffff50});
+                        var geometryLight = new THREE.CylinderGeometry(8, 2, 15, 50);
+
+
+//                        for (var a = 0; a < 2; a++) {
+//                            headLightCone[a] = new THREE.Mesh(geometryLight, materialLight);
+//
+//                            headLightCone[a].position.y = 8;
+//                            headLightCone[a].position.x = -35;
+//                            if (a === 0) {
+//                                headLightCone[a].position.z = -4.5;
+//                            } else
+//                            {
+//                                headLightCone[a].position.z = 10.2;
+//                            }
+//                            headLightCone[a].rotation.z = 2;
+//                            headLightCone[a].side = THREE.DoubleSide;
+//                            headLightCone[a].openEnded = true;
+//                            carGroup.add(headLightCone[a]);
+//                        }
+                        carGroup.add(carHeadLightGroup);
+                    }
+                    createHeadLights();
+                    //setting some variables for the wheel that will be created.
+                    var geometry = new THREE.TorusGeometry(2.5, 1, 10, 30);
+
+                    //setting the variables for the hubcaps of the wheel
+                    materialWheel.side = THREE.DoubleSide;
+                    var geometryHubcap = new THREE.TorusGeometry(1.25, 1.8, 2.2, 50);
+                    var materialWheelHubcap = new THREE.MeshPhongMaterial({color: 0xebe6df});
+                    materialWheelHubcap.side = THREE.DoubleSide;
+                    var geometryArch = new THREE.TorusGeometry(3, 1.5, 10, 30, 3);
+
+                    //setting the arch for the wheel to half cover it. 
+                    materialArch.side = THREE.DoubleSide;
+                    var xTop = -22;
+                    var zTop = 14;
+                    var yTop = 8.5;
+
+                    //creating the steeringwheel, this wheel will turn when the user turns the car
+                    //or if randomised it will turn on that instead.
+                    function steeringWheel() {
+                        //setting it to be a small torus, I've not made it a perfect cicle
+                        //so you can see it turn.
+                        wheelMat.side = THREE.DoubleSide;
+                        var geometryWheel = new THREE.TorusGeometry(1.5, 0.2, 5, 20);
+                        wheel = new THREE.Mesh(geometryWheel, wheelMat);
+                        //setting the position to be in the car.
+                        //*note you can't really see it unless you switch the camera to be inside the
+                        //car
+                        wheel.position.y = yTop - 1.5;
+                        wheel.position.x = -6;
+                        wheel.position.z = 0;
+                        wheel.position.y = 15;
+                        wheel.rotation.y = 1.5;
+
+                        carGroup.add(wheel);
+                    }
+                    steeringWheel();
+                    //wheels
+                    var carTyreGroup = new THREE.Group();
+                    carGroup.add(carTyreGroup);
+                    //a big for loop to create all the parts of the tyre (hubcap, tyre, wheelarch)
+                    for (var i = 0; i < 4; i++) {
+                        //creating all new meshs in an array.
+                        torus[i] = new THREE.Mesh(geometry, materialWheel);
+                        torus1[i] = new THREE.Mesh(geometryHubcap, materialWheelHubcap);
+                        wheelArch[i] = new THREE.Mesh(geometryArch, materialArch);
+                        wheelArch[i].scale.set(1, 0.5, 1.2);
+                        //adding them all to the group
+                        carTyreGroup.add(wheelArch[i]);
+                        carTyreGroup.add(torus[i]);
+                        carTyreGroup.add(torus1[i]);
+                        //this is checking to see what side of the car the objects should be placed.
+                        //also I'll only comment the first if as they are all the same apart 
+                        //from the positioning. 
+                        if (i % 2 === 0) {
+                            //if its even then it will do this
+                            //if it's the second wheel it will run this 
+                            if (i === 2)
+                            {
+                                //i've set the positions of the objects to be based on another variable
+                                //this is because if i wanted to change the location on the scene of them
+                                //i would have to change a over 20 differnt variables, instead of just 3.
+                                //this also made for easier positioning
+                                //the wheel arch of the first wheel
+                                wheelArch[i].position.y = yTop;
+                                wheelArch[i].position.x = xTop;
+                                wheelArch[i].position.z = zTop;
+
+                                //the hubcap
+                                torus1[i].position.y = yTop - 1.5;
+                                torus1[i].position.x = xTop;
+                                torus1[i].position.z = zTop;
+                                //the wheel itself
+                                torus[i].position.y = yTop - 1.5;
+                                torus[i].position.x = xTop;
+                                torus[i].position.z = zTop;
+                                //setting them to cast shadows 
+                                wheelArch[i].castShadow = true;
+                                torus1[i].castShadow = true;
+                                wheelArch[i].receiveShadow = true;
+                                torus1[i].receiveShadow = true;
+                                wheelArch[i].castShadow = true;
+                                wheelArch[i].receiveShadow = true;
+                            } else {
+                                wheelArch[i].position.y = yTop;
+                                wheelArch[i].position.x = xTop;
+                                wheelArch[i].position.z = -8;
+
+                                torus1[i].position.y = yTop - 1.5;
+                                torus1[i].position.x = xTop;
+                                torus1[i].position.z = -8;
+                                torus[i].position.y = yTop - 1.5;
+                                torus[i].position.x = xTop;
+                                torus[i].position.z = -8;
+                                torus1[i].castShadow = true;
+                                torus1[i].receiveShadow = true;
+                                wheelArch[i].castShadow = true;
+                                wheelArch[i].receiveShadow = true;
+                            }
+                        } else {
+                            if (i === 3) {
+                                wheelArch[i].position.y = yTop;
+                                wheelArch[i].position.x = 5;
+                                wheelArch[i].position.z = zTop;
+
+                                torus1[i].position.y = yTop - 1.5;
+                                torus1[i].position.x = 5;
+                                torus1[i].position.z = zTop;
+                                torus[i].position.y = yTop - 1.5;
+                                torus[i].position.x = 5;
+                                torus[i].position.z = zTop;
+                                torus1[i].castShadow = true;
+                                torus1[i].receiveShadow = true;
+                                wheelArch[i].castShadow = true;
+                                wheelArch[i].receiveShadow = true;
+                            } else {
+                                wheelArch[i].position.y = yTop;
+                                wheelArch[i].position.x = 5;
+                                wheelArch[i].position.z = -8;
+
+                                torus1[i].position.y = yTop - 1.5;
+                                torus1[i].position.x = 5;
+                                torus1[i].position.z = -8;
+                                torus[i].position.y = yTop - 1.5;
+                                torus[i].position.x = 5;
+                                torus[i].position.z = -8;
+                                torus1[i].castShadow = true;
+                                torus1[i].receiveShadow = true;
+                                wheelArch[i].castShadow = true;
+                                wheelArch[i].receiveShadow = true;
+                            }
+                        }
+
+                    }
+
+                    //adding the roof
+                    carGroup.add(roof);
+                    //carGroup.rotation.x=1;
+                    //moving the whole car 
+                    carGroup.position.y = -6;
+
+                    //setting differnt textures that will be applied to the wheel
+                    //and steering wheel
+                    var loader = new THREE.TextureLoader();
+                    var stoneBumpMap = loader.load("../assets/textures/general/stone-bump.jpg");
+                    var metal = loader.load("../assets/textures/general/weave.jpg");
+                    var wheel2 = loader.load("../assets/textures/general/brick-wall.jpg");
+
+                    material.bumpMap = stoneBumpMap;
+                    material.bumpScale = 0.5;
+
+                    wheelMat.bumpMap = wheel2;
+                    wheelMat.bumpScale = 0.5;
+
+                    materialWheel.bumpMap = stoneBumpMap;
+                    materialWheel.bumpScale = 0.5;
+                    materialWheelHubcap.bumpMap = metal;
+                    materialWheelHubcap.bumpScale = 0.5;
+                }
+                //This can be used now to create the car easily.
+                createCar();
+                //the function that will create the key(floating square)
+                //the square will act as a point everytime its hit by the car
+                function keyCreate() {
+                    //setting the cube to have 10 faces. 
+                    //this is because of the multiple colours that i wish to put on the cube
+                    var geometry = new THREE.CubeGeometry(5, 5, 5, 1, 10, 10);
+                    //like the teleporter set the faces randomly in colour
+                    for (var i = 0; i < geometry.faces.length; i++) {
+                        geometry.faces[ i ].color.setHSL(Math.random(), 0.5, 0.5);
+                    }
+                    //add it to a mesh
+                    var material = new THREE.MeshLambertMaterial({vertexColors: THREE.FaceColors});
+                    key = new THREE.Mesh(geometry, material);
+                    var geom = new THREE.CubeGeometry(5, 5, 5);
+                    //key = new THREE.Mesh(geom, material);
+                    //this is going to set the position of the cube randomly within
+                    //the limit of the scene. 
+                    var x = Math.round(Math.random() * limit - 15) + 1;
+                    var z = Math.round(Math.random() * limit - 15) + 1;
+                    //as this would only position it in the postive x and z
+                    //another if here will make it go 50/50 to be negitive or postive for both
+                    if (Math.round(Math.random() * 10) + 1 > 5) {
+                        x = -x;
+                    }
+                    if (Math.round(Math.random() * 10) + 1 > 5) {
+                        z = -z;
+                    }
+                    //now actually adding it to the scene.
+                    key.position.x = x;
+                    key.position.y = 5;
+                    key.position.z = z;
+                    //allowing it to cast shadows
+                    key.castShadow = true;
+                    //adding it directly to the scene.
+                    scene.add(key);
+                }
+                keyCreate();
+
+                //this function only gets called once the car goes through the teleporter
+                //the telepoter only appears once the score is high enough from hitting the cube
+                //created above.
+                //so theres a possibilty that this ball won't ever get created. 
+                function createBall() {
+                    //it's a basic ball with an earth style textured on top of it. 
+                    //this makes the ball look really fun to play with.
+                    sphereMaterial = normalTexture;
+                    sphere.rotation.y = -0.5;
+                    sphere.position.x = 12;
+                    sphere.position.y = 5;
+                    scene.add(sphere);
+
+                    sphere.position.x = 25;
+                    sphere.position.y = 25;
+                    sphere.position.z = 25;
+                    sphere.castShadow = true;
+                }
+                scene.add(carGroup);
+                //creating a clock.
+                var clock = new THREE.Clock();
+
+                //this function will remove all of the lampposts and their light.
+                function destroyLights() {
+                    //a loop so it can do it effectively
+                    for (var i = 0; i < 4; ++i) {
+                        //remvoing them from the scene
+                        scene.remove(lampPostStaff[i]);
+                        scene.remove(lampLight[i]);
+                        scene.remove(lampTarget[i]);
+                        scene.remove(lampTop[i]);
+                    }
+                    //this function updates all the materials so the shadows don't remain
+                    needsUpdate();
+                }
+
+//the function  that actually creates the lampposts.
+//this can also be called from a button click, that will recreate them
+                function setSpotLights() {
+                    //if they are allready created then destroy them.
+                    destroyLights();
+                    //setting the lamppost materials 
+
+                    var geometryLight = new THREE.CylinderGeometry(2, 2, 100, 50, 10);
+                    var geometry = new THREE.CubeGeometry(5, 2, 8, 5);
+                    var material = new THREE.MeshPhongMaterial({colour: Math.random() * 0x888888, specular: 0x888888});
+                    //this loop is one that will randomise the position of them, similar
+                    //to the creation of the cube
+                    //it also create all the objects. only 4 lamps will be made
+                    for (var i = 0; i < 4; ++i) {
+                        var x = Math.round(Math.random() * limit - 15) + 1;
+                        var z = Math.round(Math.random() * limit - 15) + 1;
+                        if (Math.round(Math.random() * 10) + 1 > 5) {
+                            x = -x;
+                        }
+                        if (Math.round(Math.random() * 10) + 1 > 5) {
+                            z = -z;
+                        }
+                        var materialLight = new THREE.MeshPhongMaterial({colour: 0xFFFFFF, specular: 0x888888, shininess: 5});
+                        //the lamptop is exactly what it says, it just makes it look more like a lamppost
+                        materialLight.color.setHSL(Math.random(), 0.5, 0.5);
+                        lampTop[i] = new THREE.Mesh(geometry, material);
+                        lampTop[i].position.set(x, 90, z + 2);
+                        //also creating the post of the lamppost
+                        scene.add(lampTop[i]);
+                        lampPostStaff[i] = new THREE.Mesh(geometryLight, materialLight);
+                        scene.add(lampPostStaff[i]);
+                        lampPostStaff[i].castShadow = true;
+                        lampPostStaff[i].side = THREE.DoubleSide;
+                        lampPostStaff[i].position.set(x, 40, z + 5);
+                        //the light for the lampposts. this will point directly down
+                        //it will be brighter than usaul as well and will cast shadows.
+                        lampLight[i] = new THREE.SpotLight(0xffff00);
+                        lampLight[i].position.set(x, 90, z);
+                        lampLight[i].intensity = 1.5;
+                        lampLight[i].castShadow = true;
+                        lampTarget[i] = new THREE.Object3D();
+                        lampTarget[i].position.set(x, 0, z);
+                        scene.add(lampTarget[i]);
+                        lampLight[i].target = lampTarget[i];
+                        //uncomment this to see where the lights actually are
+                        //var sphereSize = 1;
+//                        var pointLightHelper = new THREE.PointLightHelper( lampLight[i], sphereSize );
+//                        scene.add( pointLightHelper );
+                        scene.add(lampLight[i]);
+                    }
+                    needsUpdate();
+                }
+                setSpotLights();
+
+                //the controls for the whole scene this contains multiple copoents for 
+                //controlling the size/colour of the car, and the lights, floor, camera and car movement 
+                var controls2 = new function () {
+                    //setting some of the controls.
+                    //the scale will be used to scale the car, nothing else
+                    this.scaleX = 1;
+                    this.scaleY = 1;
+                    this.scaleZ = 1;
+                    this.scaleCar = 1;
+                    //the rotate will  be used in the car
+                    this.rotateX = 0;
+                    this.rotateY = 0;
+                    this.rotateZ = 0;
+                    //this could be used to move the car so you don't have to drive it to a postion.
+                    this.translateX = 0;
+                    this.translateY = 0;
+                    this.translateZ = 0;
+
+//check boxes for the lights, glow effect the movement of the car, the camera and the actual shadows
+                    this.night = false;
+                    this.glow = false;
+                    this.RandomMovement = false;
+                    this.freeCamera = false;
+                    this.shadows = true;
+                    //here are all of the colours that you can change. 
+                    //these all belong to the car, you can change various parts of the cars colours
+                    //I've decided to not let you change the actualy mesh of the car, because 
+                    //it could look awful and be rather pointless
+                    this.changeAllColours = material.color.getHex();
+                    this.colourRoof = materialRoof.color.getHex();
+                    this.colourBonnet = materialBonnet.color.getHex();
+                    this.colourBonnetSides = materialBonnetSides.color.getHex();
+                    this.colourDoors = materialDoor.color.getHex();
+                    this.colourBackTop = backMaterial.color.getHex();
+                    this.colourBackPanel = materialPanelBack.color.getHex();
+                    this.switchCameras = "overview";
+                    //this would move the car
+                    this.translate = function () {
+                        carGroup.translateX(this.translateX);
+                        carGroup.translateY(this.translateY);
+                        carGroup.translateZ(this.translateZ);
+
+                    };
+
+                    //this control will switch cameras, you can rotate through 3 different cameras
+                    this.switchCamera = function () {
+                        //having a variable called cam, means it's simple to rotate through the cameras in order
+                        //based on what the last camera was.
+                        if (cam === "carCam") {
+                            //calls another fucntion that moves the camera
+                            aboveCar();
+                            cam = "aboveCar";
+                        } else if (cam === "aboveCar") {
+                            thridPerson();
+                            cam = "thridPerson";
+                        } else {
+                            carCam();
+                            cam = "carCam";
+                        }
+                    };
+
+                    //because of the function created for the lampposts to re randomised them
+                    //all i have to do is call the function again.
+                    this.randomiseLights = function () {
+                        setSpotLights();
+                    };
+                    //I've added the ability to change what floor you want
+                    this.changeFloor = function () {
+                        //making a loader
+                        var loader = new THREE.TextureLoader();
+                        var floor;//setting the variable
+                        if (floorChange === "wood") {
+                            //if the floor is wood, change to plast
+                            floorChange = "plast";
+                            //add the texture to the floor
+                            floor = loader.load("../assets/textures/general/plaster.jpg");
+                        } else if (floorChange === "plast") {
+                            //if its plast change it to wood
+                            floorChange = "wood";
+                            //add the texture to the floor
+                            floor = loader.load("../assets/textures/general/wood-2.jpg");
+                        }
+                        //making the floor look like it should
+                        //adding wrapping and repeats.
+                        floor.repeat.set(7, 7);
+                        floor.wrapS = THREE.RepeatWrapping;
+                        floor.wrapT = THREE.RepeatWrapping;
+                        //change the bumpscale
+                        floor.bumpScale = 2;
+                        //add it the the floormaterail
+                        floorMaterial.map = floor;
+                        floorMaterial.bumpScale = 0.2;
+                        //upadate everything.
+                        needsUpdate();
+                    };
+                };
+
+//creating a new GUI that will hold all of the controls
+                var gui = new dat.GUI();
+                function setGuiObjects() {
+                    //adding folders to hold the scale and colouring for the controls
+                    var guiScale = gui.addFolder('scale');
+                    var guiColours = gui.addFolder('Colouring');
+                    //adding the scale parts to the scale folder 
+                    //setting them to be a max of 5 but a minium of 1 for scaling
+                    guiScale.add(controls2, 'scaleX', 1, 5);
+                    guiScale.add(controls2, 'scaleY', 1, 5);
+                    guiScale.add(controls2, 'scaleZ', 1, 5);
+                    //setting the starting scale to be 1.5
+                    controls2.scaleX = 1.5;
+                    controls2.scaleY = 1.5;
+                    controls2.scaleZ = 1.5;
+                    //adding the ability to scale everything at once and if it changes scale the car
+                    guiScale.add(controls2, 'scaleCar', 1, 5).onChange(function (e) {
+                        //this will change the size of the car.
+                        controls2.scaleX = controls2.scaleCar;
+                        controls2.scaleY = controls2.scaleCar;
+                        controls2.scaleZ = controls2.scaleCar;
+                        //updating the rest of the controls
+                        updateGUI();
+                    });
+                    //the update that will change the controls
+                    function updateGUI() {
+                        controls2.scaleX = controls2.scaleCar;
+                        controls2.scaleY = controls2.scaleCar;
+                        controls2.scaleZ = controls2.scaleCar;
+                    }
+                    //if the checked night gets changed, run this
+                    gui.add(controls2, 'night').onChange(function (e) {
+                        //this is a simple check to see if the lights are on/off
+                        if (headLightLight.intensity === 5) {
+                            //if they are on turn them off and change the casting of their shadows
+                            headLightLight.intensity = 0;
+                            headLightLight2.intensity = 0;
+                            headLightLight2.castShadow = false;
+                            headLightLight.castShadow = false;
+                            //also change the headlight square to be gray again
+                            headLightMaterial.color = new THREE.Color(0xFFFFF0);
+                            //was used for the cones that i commeneted out
+//                            headLightCone[0].traverse(function (object) {
+//                                object.visible = false;
+//                            });
+//                            headLightCone[1].traverse(function (object) {
+//                                object.visible = false;
+//                            });
+                            //turn the surrounding light of the scene back on as the carlights are off
+                            light.intensity = 1;
+                            //turn the glow off
+                            for (var t = 0; t < 2; t++) {
+                                lightGlow[t].intensity = 0;
+                            }
+                            //update the scene
+                            needsUpdate();
+                            //I changed my mind about the lampposts and i want their light to
+                            //always be on
+//                        for (var i = 0; i < 4; ++i) {
+//                        spotLight[i].intensity = 0.5;
+//                        }
+                        } else {//if their off, turn them on, the exact oppisite of above
+                            headLightLight.intensity = 5;
+                            headLightLight2.intensity = 5;
+                            headLightLight2.castShadow = true;
+                            headLightLight.castShadow = true;
+                            for (var t = 0; t < 2; t++) {
+                                lightGlow[t].intensity = 0.5;
+                            }
+                            light.intensity = 0.1;
+                            headLightMaterial.color = new THREE.Color(0xFFFF00);
+//                            headLightCone[0].traverse(function (object) {
+//                                object.visible = true;
+//                            });
+//                            headLightCone[1].traverse(function (object) {
+//                                object.visible = true;
+//                            });
+                            needsUpdate();
+                            //spotLight.intensity = 0.5;
+//                        for (var i = 0; i < 4; ++i) {
+//                            spotLight[i].intensity = 0.5 ;
+//                        }
+                        }
+                    });
+
+//if they want the corners to glow 
+                    gui.add(controls2, 'glow').onChange(function (e) {
+                        //checking to see if they are already off
+                        if (bluePoint[0].intensity === 0) {
+                            //if they are off, turn them on 
+                            for (var t = 0; t < 2; t++) {
+                                bluePoint[t].intensity = 1.5;
+                            }
+                            //update surroundings
+                            needsUpdate();
+                        } else {
+                            //if they were on turn them off.
+                            for (var t = 0; t < 2; t++) {
+                                bluePoint[t].intensity = 0;
+                            }
+                            needsUpdate();
+                        }
+                    });
+                    //i added this control as a less powerfull machine 
+                    //will make the scene lag, and some parts not load.
+                    //as pointlights destroy FPS you can turn them on/off
+                    gui.add(controls2, 'shadows').onChange(function (e) {
+                        headLightLight.castShadow = e;
+                        headLightLight2.castShadow = e;
+                        bluePointCar.castShadow = e;
+                        light.castShadow = e;
+                        for (var i = 0; i < 4; i++) {
+                            lampLight[i].castShadow = e;
+                        }
+                        bluePoint.castShadow = e;
+                        needsUpdate();
+                    });
+
+                    //these muilple differnt checks will only change the colours of certain parts
+                    //of the car
+                    //this one changes all the colours of the car.
+                    guiColours.addColor(controls2, 'changeAllColours').onChange(function (e) {
+                        material.color = new THREE.Color(e);
+                        material2.color = new THREE.Color(e);
+                        materialWheel.color = new THREE.Color(e);
+                        materialRoof.color = new THREE.Color(e);
+                        materialBonnet.color = new THREE.Color(e);
+                        materialBonnetSides.color = new THREE.Color(e);
+                        materialDoor.color = new THREE.Color(e);
+                        materialside.color = new THREE.Color(e);
+                        backMaterial.color = new THREE.Color(e);
+                        materialPanelBack.color = new THREE.Color(e);
+                        materialArch.color = new THREE.Color(e);
+                        materialFront.color = new THREE.Color(e);
+                    });
+
+                    //effects the roof colour
+                    guiColours.addColor(controls2, 'colourRoof').onChange(function (e) {
+                        materialRoof.color = new THREE.Color(e);
+                    });
+                    //effects to bonnet colour
+                    guiColours.addColor(controls2, 'colourBonnet').onChange(function (e) {
+                        materialBonnet.color = new THREE.Color(e);
+                    });
+                    //effects the colour of the sides of the bonnet
+                    guiColours.addColor(controls2, 'colourBonnetSides').onChange(function (e) {
+                        materialBonnetSides.color = new THREE.Color(e);
+                    });
+                    //effects the colour of the doors
+                    guiColours.addColor(controls2, 'colourDoors').onChange(function (e) {
+                        materialDoor.color = new THREE.Color(e);
+                    });
+                    //effects the colour of the top of the back of the car
+                    guiColours.addColor(controls2, 'colourBackTop').onChange(function (e) {
+                        backMaterial.color = new THREE.Color(e);
+                    });
+                    //changes the back panels of the car
+                    guiColours.addColor(controls2, 'colourBackPanel').onChange(function (e) {
+                        materialPanelBack.color = new THREE.Color(e);
+                    });
+                    //adding the switch camera to the gui
+                    gui.add(controls2, 'switchCamera');
+                    gui.add(controls2, 'switchCameras', ['overview', '3rdPerson', '1stPerson']).onChange(function (e) {
+                        switch (e) {
+                            case "overview":
+                                aboveCar();
+                                cam = "aboveCar";
+                                break;
+                            case "3rdPerson":
+                                thridPerson();
+                                cam = "thridPerson";
+                                break;
+                            case "1stPerson":
+                                carCam();
+                                cam = "carCam";
+                                break;
+                        }
+
+                    });
+                    //the randomise light controls. 
+                    gui.add(controls2, 'randomiseLights');
+                    //setting controls for random movement.
+                    gui.add(controls2, 'RandomMovement').onChange(function (e) {
+                        if (moveCar === false) {
+                            moveCar = true;
+                        } else if (moveCar === true) {
+                            moveCar = false;
+                            var test = Math.round(Math.random() * 10) + 1;
+                            speed = Math.round(Math.random() * 10) + 1;
+                            if (test > 5) {
+                                speed = -speed;
+                            }
+                            test = Math.round(Math.random() * 10) + 1;
+                            rot = Math.round(Math.random() * 10) * 0.01;
+                            if (test > 5) {
+                                rot = -rot;
+                            }
+                        }
+                    });
+                    //adds the floor changing to the gui
+                    gui.add(controls2, 'changeFloor');
+                    //sets the freedom of the camera to be false
+                    freedom = false;
+                    //this will turn on trackball controls for the camera
+                    //*note this is slightly bugged and will only work if its the overview camera.
+                    gui.add(controls2, 'freeCamera').onChange(function (e) {
+                        if (freedom === true) {
+                            freedom = false;
+                            //deletes the camera freeodom
+                            removeCameraFreedom();
+                            aboveCar();
+                        } else {
+                            //creates the freedom
+                            freedom = true;
+                            cameraFreedom();
+                        }
+                    });
+                }
+                setGuiObjects();
+
+                // call the render function
+                render();
+
+                //the function that creates the text that goes onto the scene
+                //this includes the overlay for controls and the score.
+                function createText() {
+                    //for the score of the game
+                    //setting the position of the score
+                    textScore.style.position = 'absolute';
+                    textScore.style.width = 100;
+                    textScore.style.height = 100;
+                    //setting background colour to be cyan
+                    textScore.style.backgroundColor = "cyan";
+                    //setting the text to include a varaible
+                    textScore.innerHTML = "Score:" + score;
+                    //simple position near top left
+                    textScore.style.top = (window.innerWidth / 10) + 'px';
+                    textScore.style.left = 1 + 'px';
+                    document.body.appendChild(textScore);
+
+                    //instructions
+                    instructions.style.position = 'absolute';
+                    instructions.style.width = 100;
+                    instructions.style.height = 100;
+                    instructions.style.display = 'block';
+                    instructions.style.backgroundColor = "yellow";
+                    //long instructions...
+                    instructions.innerHTML = "To move around use the keys ' W,A,S,D ' </br> or use the arrow keys</br> Pressing 'o' will open the car door and back, and </br> pressing 'c' will close them again. </br> You can also click the car to do the same.</p> You can collect the floating square to </br> unlock a teleporter, that will</br> give you a ball!<p>Press 'm' to reload the scene</p> Use the Konami Code to cheat your score. </p> To hide/show this press 'p'";
+                    //simple position near top left
+                    instructions.style.top = (window.innerWidth / 6) + 'px';
+                    instructions.style.left = (window.innerHeight / 2) + 'px';
+                    //adding it to the body
+                    document.body.appendChild(instructions);
+                }
+                createText();
+                //the rerandom function gets called for the car when it's randomly moving
+                //so if it hits something or if a variable hits a certain number than it will
+                //re run to create a new direction
+                function reRandom() {
+                    //random variables that the car will use
+                    var test = Math.round(Math.random() * 10) + 1;
+                    speed = Math.round(Math.random() * 10) + 1;
+                    if (test > 5) {
+                        //setting it so the car can move backwards sometimes
+                        speed = -speed;
+                    }
+                    //the rotation of the car can go both ways
+                    test = Math.round(Math.random() * 10);
+                    rot = Math.round(Math.random() * 10) * 0.005;
+                    if (test > 5) {
+                        rot = -rot;
+                    }
+                    textScore.innerHTML = "Score:" + score;
+                }
+
+                function render() {
+                    //if freedom is true then the camera should be able to move
+                    if (freedom === true) {
+                        controlsCam.update(delta);
+                    }
+                    //checking to see if the car has hit anything
+                    checkCollision();
+                    //updating the fps
+                    stats.update();
+                    //if the score is above 1, set at 1 otherwise tedious
+                    if (score > 1) {
+                        //will add the teleporter from the function created earlier
+                        addTeleporter();
+                    }
+
+                    //if move car is true (randomised movement)
+                    //then move the car accordilying
+                    if (moveCar === true) {
+                        //gets the speed that was set from the rerandom function
+                        //and starts moving it based on that its - other wise it wouldnt move in 
+                        //correct directions sometimes
+                        carGroup.position.x -= speed * Math.sin(carGroup.rotation.y + 1.6);
+                        carGroup.position.z -= speed * Math.cos(carGroup.rotation.y + 1.6);
+                        //rotate the car based on the rotation created in the rerandom function
+                        carGroup.rotation.y += rot;
+                        if (rot > 0) {
+                            //if the rotation is going one way move the wheels to account for this
+                            //also rotate the steeringwheel
+                            wheel.rotation.z += rot;
+                            //loops over the wheel parts
+                            for (var i = 0; i < 4; i++) {
+                                if (torus[i].rotation.y > 0.5) {
+                                } else {
+                                    torus[i].rotation.y += rot;
+                                    torus1[i].rotation.y += rot;
+                                }
+                                torus[i].rotation.z += rot;
+                                torus1[i].rotation.z += rot;
+                            }
+                            //otherwise move it the other way
+                        } else if (rot < 0) {
+                            wheel.rotation.z += rot;
+                            for (var i = 0; i < 4; i++) {
+                                if (torus[i].rotation.y < -0.5) {
+                                } else {
+                                    torus[i].rotation.y -= rot;
+                                    torus1[i].rotation.y -= rot;
+                                }
+                            }
+                        }
+                        //1 in a 100 chance of changing the movement without hitting anything,
+                        //done because sometimes it would go in cicles forever or move really slow
+                        var rand = Math.round(Math.random() * 100) + 1;
+                        if (rand === 1) {
+                            reRandom();
+                        }
+                    }
+                    //this upDown varaible is for the cube that gives you points
+                    //this will make it look like its going up and down.
+                    if (upDown === true) {
+                        //if its below 15 in height move it until it hits 15
+                        //then change the variable
+                        if (key.position.y < 15) {
+                            key.position.y += 0.2;
+                        } else {
+                            upDown = false;
+                        }
+                        //move it down until it hits 3 then change the varible
+                        //makes it look like it floating up and down.
+                    } else {
+                        if (key.position.y > 3) {
+                            key.position.y -= 0.2;
+                        } else {
+                            upDown = true;
+                        }
+                    }
+                    //heres a if statement that will open the door and the boot of the car
+                    //this can be true if the user clicks the car or presses 'c'
+                    if (doorOpen === true) {
+                        //if its below a certain rotation move and rotate the door.
+                        if (doorRight.rotation.z < -2.6) {
+                        } else {
+                            doorRight.position.z -= 0.04;
+                            doorRight.position.y += 0.01;
+                            doorRight.position.x -= 0.02;
+                            doorRight.rotation.z -= 0.01;
+                        }
+                        //this if is for the boot of the car, does the same as above but for the boot
+                        if (backTop.rotation.z > -1.6) {
+                        } else {
+                            backTop.rotation.z += 0.01;
+                            backTop.position.x -= 0.028;
+                            backTop.position.y -= 0.025;
+                        }
+                        //if its false and the door/boot are open, it will start to close them until its
+                        //back at the orginal position.
+                    } else if (doorOpen === false) {
+                        if (doorRight.rotation.z > -1.58) {
+                        } else {
+                            doorRight.position.z += 0.04;
+                            doorRight.position.y -= 0.01;
+                            doorRight.position.x += 0.02;
+                            doorRight.rotation.z += 0.01;
+                        }
+                        if (backTop.rotation.z < -3.15) {
+                        } else {
+                            backTop.rotation.z -= 0.01;
+                            backTop.position.x += 0.028;
+                            backTop.position.y += 0.025;
+                        }
+                    }
+                    //this is checking if the ball that gets created when going through the teleporter
+                    //is not touching the floor. 
+                    if (ballFlying === true) {
+                        //if its not touching the floor move it according to the variables that got set 
+                        //when it hit the car it will rotate (like earth)
+                        sphere.rotation.y += 0.2;
+                        sphere.position.y += ballSpeedy;
+                        sphere.position.x += ballSpeedx;
+                        sphere.position.z += ballSpeedz;
+                        ballSpeedy -= 0.2;
+                    }
+                    //if the ball is getting hit keep changing the variables, this stops it getting stuck in
+                    //corners
+                    if (ballH === true) {
+                        ballSpeedy = Math.random() * 4;
+                        ballSpeedx = Math.random() * 3;
+                        ballSpeedz = Math.random() * 3;
+                        //setting it so it can have a chance of going in all directions
+                        if (Math.random() < 0.5) {
+                            ballSpeedx = -ballSpeedx;
+                        }
+                        if (Math.random() < 0.5) {
+                            ballSpeedz = -ballSpeedz;
+                        }
+                        sphere.position.y += ballSpeedy;
+//                         sphere.position.x -= ballSpeedx;
+//                         sphere.position.z -= ballSpeedz;
+                    }
+                    var delta = clock.getDelta();
+                    // controls.update(delta);                    
+                    //orbitControls.update(delta);  
+                    //this is saying if the camera is not the above view of the scene
+                    //then look at the carGroup
+                    if (cam === "carCam" || cam === "thridPerson") {
+                    } else {
+                        camera.lookAt(carGroup.position);
+                    }
+
+                    //this will scale the car based on the controls we made earlier
+                    carGroup.scale.set(controls2.scaleX, controls2.scaleY, controls2.scaleZ);
+                    //carGroup.rotation.set(controls2.rotateX, controls2.rotateY, controls2.rotateZ);
+                    // render using requestAnimationFrame
+                    requestAnimationFrame(render);
+                    renderer.render(scene, camera);
+
+                    //this is a basic "hit detection" it will basicly look like the car can't move out of the walls
+                    //and if it hits the limit(walls) then it will bounce back in the scene, I did this instead
+                    //of just changing the speed 
+                    //as these are for the walls I've left most uncommented.
+                    if (carGroup.position.x + 28 * controls2.scaleX > limit) {
+                        carGroup.position.x -= 28;
+                        //this is saying if it hits the limit and it car is moving randomly
+                        //then change the direction by rerandomsing it
+                        if (moveCar === true) {
+                            reRandom();
+                        }
+                    }
+                    if (carGroup.position.x - 28 * controls2.scaleX < -limit) {
+                        carGroup.position.x += 28;
+                        if (moveCar === true) {
+                            reRandom();
+                        }
+                    }
+                    //the car shouldn't be able to go up, so no need for this really/
+                    if (carGroup.position.y > limit) {
+                        alert("HOW DID YOU DO IT!");
+                    }
+                    if (carGroup.position.z - 28 * controls2.scaleX < -limit) {
+                        carGroup.position.z += 28;
+                        if (moveCar === true) {
+                            reRandom();
+                        }
+                    }
+                    if (carGroup.position.z + 28 * controls2.scaleX > limit) {
+                        carGroup.position.z -= 28;
+                        if (moveCar === true) {
+                            reRandom();
+                        }
+                    }
+                    //these next set of ifs are for the ball that gets created
+                    //its the same as the car limitation
+                    if (sphere.position.x > limit) {
+                        sphere.position.x -= 28;
+                    }
+                    if (sphere.position.x < -limit) {
+                        sphere.position.x += 28;
+                    }
+                    if (sphere.position.z < -limit) {
+                        sphere.position.z += 28;
+                    }
+                    if (sphere.position.z > limit) {
+                        sphere.position.z -= 28;
+                    }
+                }
+
+                //this next function is one of the most important for the scene, 
+                //as it checks the collisions for the car and ball and everything else in the scene.
+                function checkCollision() {
+                    //setting a box around all of the objects that i want to test
+                    //for hit detections
+                    var carGroupBox = new THREE.Box3().setFromObject(carGroup);
+                    var planeBox = new THREE.Box3().setFromObject(plane);
+                    var lamp1 = new THREE.Box3().setFromObject(lampPostStaff[0]);
+                    var lamp2 = new THREE.Box3().setFromObject(lampPostStaff[1]);
+                    var lamp3 = new THREE.Box3().setFromObject(lampPostStaff[2]);
+                    var lamp4 = new THREE.Box3().setFromObject(lampPostStaff[3]);
+                    var teleport = new THREE.Box3().setFromObject(teleporterCube);
+                    var keyB = new THREE.Box3().setFromObject(key);
+                    var ball = new THREE.Box3().setFromObject(sphere);
+
+                    //setting variables based on if the boxes are intersecting
+                    //most are done on the car against other objects
+                    //but some are checking the ball
+                    //these first four are for the car and lampposts
+                    var collision = carGroupBox.isIntersectionBox(lamp1);
+                    var collision2 = carGroupBox.isIntersectionBox(lamp2);
+                    var collision3 = carGroupBox.isIntersectionBox(lamp3);
+                    var collision4 = carGroupBox.isIntersectionBox(lamp4);
+                    //car agianst the teleporter
+                    var collisionTele = carGroupBox.isIntersectionBox(teleport);
+                    //car against the cube for score
+                    var keyChec = carGroupBox.isIntersectionBox(keyB);
+                    //the ball agianst the floor
+                    var ballCheck = planeBox.isIntersectionBox(ball);
+                    //the car agianst the ball
+                    var ballHit = carGroupBox.isIntersectionBox(ball);
+
+//if the car has hit the cube then it will run this
+                    if (keyChec === true) {
+                        //it will add one to the score
+                        score += 1;
+                        //update the text on screen
+                        textScore.innerHTML = "Score:" + score;
+                        //delete the current cube
+                        scene.remove(key);
+                        //create new cube
+                        keyCreate();
+                        //update scene
+                        needsUpdate();
+                    } else {
+                        if (carGroup.position.y > 0) {
+                            carGroup.position.y -= 0.1;
+                        }
+                        if (carGroup.rotation.z < 0) {
+                            carGroup.rotation.z += 0.02;
+                        }
+                    }
+                    //first lamppost
+                    if (collision === true) {
+                        //if the car is randomly moving then rerandomise
+                        if (moveCar === true) {
+                            reRandom();
+                        }
+                        //set the speeds to 0 if it got hit
+                        speed = 0;
+                        speedBack = 0;
+                        //stop moving the car
+                        carGroup.position.x -= 0;
+                    }
+                    //if the ball is touching the floor or not
+                    if (ballCheck === true) {
+                        //set variable to false if ball is hitting floor
+                        ballFlying = false;
+                        ballSpeedx = 0;
+                        ballSpeedy = 0;
+                    } else {
+                        //else set it to true so it can moev
+                        ballFlying = true;
+                    }
+                    if (ballHit === true) {
+                        //set the ball hit variable to true so the ball speeds can be added
+                        ballH = true;
+                    } else {
+                        ballH = false;
+                    }
+                    // lamppost same as first.
+                    if (collision2 === true) {
+                        if (moveCar === true) {
+                            reRandom();
+                        }
+                        speed = 0;
+                        speedBack = 0;
+                        carGroup.position.x -= 0;
+                    }// lamppost same as first.
+                    if (collision3 === true) {
+                        if (moveCar === true) {
+                            reRandom();
+                        }
+                        speed = 0;
+                        speedBack = 0;
+                        carGroup.position.x -= 0;
+                    }// lamppost same as first.
+                    if (collision4 === true) {
+                        if (moveCar === true) {
+                            reRandom();
+                        }
+                        speed = 0;
+                        speedBack = 0;
+                        carGroup.position.x -= 0;
+                    }
+                    //checking if the car has hit the teleporter, if so move it to the centre of 
+                    //scene and create the ball.
+                    if (collisionTele === true) {
+                        createBall();
+                        carGroup.position.x = 0;
+                        carGroup.position.y = 0;
+                        carGroup.position.z = 0;
+                    }
+                }
+
+//adding a document listener for mouse clicks
+                document.addEventListener('mousedown', onMouseDown, false);
+                function onMouseDown(e) {//camera to mouse
+                    //creating this was to demostraight mutliple ways of the user interacting with objects
+                    //here is some "complicated" math that will detect if the car is getting clicked
+                    //i first make a vector that gets set on the mousedown.
+                    //it gets the window size and then minuss the mouses position on this screen. the 22.5 is half of the 45 that is set for the scene
+                    var mouse = new THREE.Vector3(-(window.innerWidth / 2 - e.clientX) * 2 / window.innerHeight, (window.innerHeight / 2 - e.clientY) * 2 / window.innerHeight, -1 / Math.tan(22.5 * Math.PI / 180));
+                    //applying the cameras quaternion to the mouse variable. 
+                    //without this it wouldn't work.
+                    mouse.applyQuaternion(camera.quaternion);
+                    //camera to car
+                    //setting a new vectore variable
+                    var carVec = new THREE.Vector3();
+                    //creating a vector based on the cars position and the cameras
+                    //this now gives a 3d space vector that can be compared to the first vector.
+                    carVec.set(carGroup.position.x - camera.position.x, carGroup.position.y - camera.position.y, (carGroup.position.z - 5) - camera.position.z);
+                    //2.5* the scale otherwise the hitbox will be too small if the car gets scaled up.
+                    if (mouse.angleTo(carVec) * 60 < (2.5 * controls2.scaleX)) {//*60 to make a bigger area
+                        if (doorOpen === false) {
+                            //setting the dooropen to true so the render can move it.
+                            doorOpen = true;
+                            needsUpdate();
+                        } else {
+                            //back to false so it can close. 
+                            doorOpen = false;
+                        }
+                    }
+                }
+                //adding a keypres listener using the keypres library.
+                var keypress = new window.keypress.Listener();
+                //this first listener is checking for the 'm' key, if pressed it reloads the page to reset 
+                //the scene.
+                keypress.simple_combo("m", function () {
+                    location.reload();
+                });
+                //this sequence i've used as the clasic cheat code for this scene
+                //Konami Code
+                keypress.sequence_combo("up up down down left right left right b a enter", function () {
+                    //it makes the car really small
+                    //adds a lot to your score and also updates the score dispalyed 
+                    controls2.scaleX = 0.5;
+                    controls2.scaleY = 0.5;
+                    controls2.scaleZ = 0.5;
+                    score += 9999;
+                    textScore.innerHTML = "Score:" + score;
+                    //make awesome things happen
+                }, true);
+
+//here was the start to make the car slowly come to a stop after you started to move.
+//instead of it going from fast to nothing instantly
+//i was not able to finish this however
+                window.onkeyup = function (e) {
+                    var code = e.keyCode ? e.keyCode : e.which;
+                    if (code === 38 | code === 87)
+                    {
+                        if (speed !== 0)
+                        {
+                            for (var a = 1; speed > 0; speed -= 0.05)
+                            {
+
+                            }
+                        }
+                    }
+                    if (code === 37 | code === 83)
+                    {
+                        if (speedBack !== 0)
+                        {
+                            for (var a = 1; speedBack > 0; speedBack -= 0.05)
+                            {
+                            }
+                        }
+                    }
+                };
+                //more to do with the slowly slowly down after no keys are pressed
+                carGroup.position.x -= speed * Math.sin(carGroup.rotation.y + 1.6);
+                carGroup.position.z -= speed * Math.cos(carGroup.rotation.y + 1.6);
+//they key that will move the car forwards
+                keypress.simple_combo("w", function () {
+                    //setting a max speed, also slowly increasing it, gives a more car feel/
+                    if (speed < 10) {
+                        speed += 0.2;
+                    }
+                    //moves the car based on the speed.
+                    carGroup.position.x -= speed * Math.sin(carGroup.rotation.y + 1.6);
+                    carGroup.position.z -= speed * Math.cos(carGroup.rotation.y + 1.6);
+                    //will rotate the wheels based on the movement, will also turn the wheel
+                    //back to straight it it wasn't already.
+                    for (var i = 0; i < 4; i++) {
+                        if (torus[i].rotation.y > 0) {
+                            torus[i].rotation.y -= 0.05;
+                            torus1[i].rotation.y -= 0.05;
+                        } else if (torus[i].rotation.y < 0) {
+                            torus[i].rotation.y += 0.05;
+                            torus1[i].rotation.y += 0.05;
+                        }
+                        torus[i].rotation.z += 0.05;
+                        torus1[i].rotation.z += 0.05;
+                    }
+                });
+//key to move the car backwards
+                keypress.simple_combo("s", function () {
+                    //the maxspeed for going backwards is less than forwards
+                    //as is the rate in which it goes up
+                    if (speedBack < 5) {
+                        speedBack += 0.1;
+                    }
+                    //moves car accordingly
+                    carGroup.position.x += speedBack * Math.sin(carGroup.rotation.y + 1.6);
+                    carGroup.position.z += speedBack * Math.cos(carGroup.rotation.y + 1.6);
+                    //does the same with the wheels, so if they were at an angle, they will return to straight
+                    for (var i = 0; i < 4; i++) {
+                        if (torus[i].rotation.y > 0) {
+                            torus[i].rotation.y -= 0.05;
+                            torus1[i].rotation.y -= 0.05;
+                        } else if (torus[i].rotation.y < 0) {
+                            torus[i].rotation.y += 0.05;
+                            torus1[i].rotation.y += 0.05;
+                        }
+                        torus[i].rotation.z -= 0.05;
+                        torus1[i].rotation.z -= 0.05;
+                    }
+                });
+//rotates the car to the left
+                keypress.simple_combo("a", function () {
+//                    this rotates the car to the left when the a key is pressed
+//it will also move the tyres to face the left, but they have a max rotation, so they don't spin around
+//in a circle
+                    carGroup.rotation.y += 0.05;
+                    wheel.rotation.z += 0.05;
+                    for (var i = 0; i < 4; i++) {
+                        if (torus[i].rotation.y > 0.5) {
+                        } else {
+                            torus[i].rotation.y += 0.05;
+                            torus1[i].rotation.y += 0.05;
+                        }
+                    }
+                });
+//rotates the car to the right
+                keypress.simple_combo("d", function () {
+                    //does the same as the above function apart from it rotates the other way
+                    carGroup.rotation.y -= 0.05;
+                    wheel.rotation.z -= 0.05;
+                    for (var i = 0; i < 4; i++) {
+                        if (torus[i].rotation.y < -0.5) {
+                        } else {
+                            torus[i].rotation.y -= 0.05;
+                            torus1[i].rotation.y -= 0.05;
+                        }
+                    }
+                });
+//a key combo that will check for mutliple keys pressed at the same time
+                keypress.simple_combo("w a", function () {
+//this will set the max speed to 10, and will slowly increase
+                    if (speed < 10) {
+                        speed += 0.2;
+                    }
+                    //moves the car accordingly
+                    carGroup.position.x -= speed * Math.sin(carGroup.rotation.y + 1.6);
+                    carGroup.position.z -= speed * Math.cos(carGroup.rotation.y + 1.6);
+                    //also rotates the car, so it will go in a circle if both keys are pressed at the
+                    //same time
+                    carGroup.rotation.y += 0.05;
+                    //will rotate the wheels to the side and will also rotate them to look like they are moving.
+                    for (var i = 0; i < 4; i++) {
+                        if (torus[i].rotation.y > 0.5) {
+                        } else {
+                            torus[i].rotation.y += 0.05;
+                            torus1[i].rotation.y += 0.05;
+                        }
+                        torus[i].rotation.z += 0.05;
+                        torus1[i].rotation.z += 0.05;
+                    }
+
+                });
+//does the same as above apart from to the right
+                keypress.simple_combo("w d", function () {
+                    if (speed < 10) {
+                        speed += 0.2;
+                    }
+                    carGroup.position.x -= speed * Math.sin(carGroup.rotation.y + 1.6);
+                    carGroup.position.z -= speed * Math.cos(carGroup.rotation.y + 1.6);
+                    carGroup.rotation.y -= 0.05;
+                    for (var i = 0; i < 4; i++) {
+                        if (torus[i].rotation.y < -0.5) {
+                        } else {
+                            torus[i].rotation.y -= 0.05;
+                            torus1[i].rotation.y -= 0.05;
+                        }
+                        torus[i].rotation.z += 0.05;
+                        torus1[i].rotation.z += 0.05;
+                    }
+
+                });
+//does the same as above apart from will do it backwards and right
+                keypress.simple_combo("s d", function () {
+
+                    if (speedBack < 5) {
+                        speedBack += 0.1;
+                    }
+                    carGroup.position.x += speedBack * Math.sin(carGroup.rotation.y + 1.6);
+                    carGroup.position.z += speedBack * Math.cos(carGroup.rotation.y + 1.6);
+                    carGroup.rotation.y -= 0.05;
+                    for (var i = 0; i < 4; i++) {
+                        if (torus[i].rotation.y < -0.5) {
+                        } else {
+                            torus[i].rotation.y -= 0.05;
+                            torus1[i].rotation.y -= 0.05;
+                        }
+                        torus[i].rotation.z += 0.05;
+                        torus1[i].rotation.z += 0.05;
+                    }
+
+                });
+//does the same as above apart from will do it backwards and left
+                keypress.simple_combo("s a", function () {
+
+                    if (speedBack < 5) {
+                        speedBack += 0.05;
+                    }
+                    carGroup.position.x += speedBack * Math.sin(carGroup.rotation.y + 1.6);
+                    carGroup.position.z += speedBack * Math.cos(carGroup.rotation.y + 1.6);
+                    carGroup.rotation.y += 0.05;
+                    for (var i = 0; i < 4; i++) {
+                        if (torus[i].rotation.y > 0.5) {
+                        } else {
+                            torus[i].rotation.y += 0.05;
+                            torus1[i].rotation.y += 0.05;
+                        }
+                        torus[i].rotation.z += 0.05;
+                        torus1[i].rotation.z += 0.05;
+                    }
+
+                });
+//does the exact same as the a key earlier, but this time on arrow keys
+                keypress.simple_combo("left", function () {
+                    carGroup.rotation.y += 0.05;
+                    wheel.rotation.z += 0.05;
+                    for (var i = 0; i < 4; i++) {
+                        if (torus[i].rotation.y > 0.5) {
+                        } else {
+                            torus[i].rotation.y += 0.05;
+                            torus1[i].rotation.y += 0.05;
+                        }
+                    }
+                });
+//does the exact same as the d key earlier, but this time on arrow keys
+                keypress.simple_combo("right", function () {
+                    carGroup.rotation.y -= 0.05;
+                    wheel.rotation.z -= 0.05;
+                    for (var i = 0; i < 4; i++) {
+                        if (torus[i].rotation.y < -0.5) {
+                        } else {
+                            torus[i].rotation.y -= 0.05;
+                            torus1[i].rotation.y -= 0.05;
+                        }
+                    }
+                });
+//does the exact same as the w key earlier, but this time on arrow keys
+                keypress.simple_combo("up", function () {
+                    if (speed < 10) {
+                        speed += 0.05;
+                    }
+                    carGroup.position.x -= speed * Math.sin(carGroup.rotation.y + 1.6);
+                    carGroup.position.z -= speed * Math.cos(carGroup.rotation.y + 1.6);
+                    for (var i = 0; i < 4; i++) {
+                        if (torus[i].rotation.y > 0) {
+                            torus[i].rotation.y -= 0.05;
+                            torus1[i].rotation.y -= 0.05;
+                        } else if (torus[i].rotation.y < 0) {
+                            torus[i].rotation.y += 0.05;
+                            torus1[i].rotation.y += 0.05;
+                        }
+                        torus[i].rotation.z += 0.05;
+                        torus1[i].rotation.z += 0.05;
+                    }
+                });
+//does the exact same as the d key earlier, but this time on arrow keys
+                keypress.simple_combo("down", function () {
+                    if (speedBack < 5) {
+                        speedBack += 0.05;
+                    }
+                    carGroup.position.x += speedBack * Math.sin(carGroup.rotation.y + 1.6);
+                    carGroup.position.z += speedBack * Math.cos(carGroup.rotation.y + 1.6);
+                    for (var i = 0; i < 4; i++) {
+                        if (torus[i].rotation.y > 0) {
+                            torus[i].rotation.y -= 0.05;
+                            torus1[i].rotation.y -= 0.05;
+                        } else if (torus[i].rotation.y < 0) {
+                            torus[i].rotation.y += 0.05;
+                            torus1[i].rotation.y += 0.05;
+                        }
+                        torus[i].rotation.z -= 0.05;
+                        torus1[i].rotation.z -= 0.05;
+                    }
+                });
+                //open doors
+                keypress.simple_combo("o", function () {
+                    //setting variable for the render function
+                    doorOpen = true;
+                });
+                //close doors
+                keypress.simple_combo("c", function () {
+                    //setting variable for the render function
+                    doorOpen = false;
+                });
+//this will hide or show the instructions
+                keypress.simple_combo("p", function () {
+                    //if they are being displayed, dont display
+                    if (instructions.style.display === 'block') {
+                        instructions.style.display = 'none';
+                    } else {//vise versa
+                        instructions.style.display = 'block';
+                    }
+                });
+//here is a lot of commeneted out code, this was going to replace the driving keypres checkers
+//because if you let go of a key, but are still holding one down, the car will stop moving
+//and you have to press the keys again
+//i made this to delete or add keys to an array then based on what the array was i would move the car
+//but i only got to a certain point and wasn't able to get it working correctly
+// function containsKeys(keysToCheck, keys){ 
+//                    for(var i = 0 , len = keysToCheck.length; i < len; i++){
+//                       if($.inArray(keysToCheck[i], keys) === -1) return false;
+//                    }
+//                    return true;
+//                    };
+//window.onkeydown = function (e) {
+//    var code = e.keyCode ? e.keyCode : e.which;
+//    var index = keys.indexOf(code);
+//    if (index >= 0) {
+//    }else{
+//    keys.push(code);
+//}
+//};
+//window.onkeyup = function (e) {
+//    var code = e.keyCode ? e.keyCode : e.which;
+//    var index = keys.indexOf(code);
+//    if (index >= 0) {
+//        keys.splice( index, 1 );
+//    }
+//};
+
+//this function updates all of the materials on the scene that need to be updated
+//if lights are changed or shadows are turned on/off
+                function needsUpdate() {
+                    //updating them 
+                    materialDoor.needsUpdate = true;
+                    material.needsUpdate = true;
+                    material2.needsUpdate = true;
+                    materialWheel.needsUpdate = true;
+                    materialRoof.needsUpdate = true;
+                    groundMaterial.needsUpdate = true;
+                    materialBonnet.needsUpdate = true;
+                    materialBonnetSides.needsUpdate = true;
+                    floorMaterial.needsUpdate = true;
+                    wheelMat.needsUpdate = true;
+                    headLightMaterial.needsUpdate = true;
+                    bottomMaterial.needsUpdate = true;
+                    materialPanelBack.needsUpdate = true;
+                    backMaterial.needsUpdate = true;
+                    sphereMaterial.needsUpdate = true;
+                }
+                //the car cam is the camera that is placed within the car
+                //this will look as if you are actually driving the car
+
+                function carCam() {
+                    //i remove the camera from the group
+                    carGroup.remove(camera);
+
+                    //create a new camera
+                    camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+                    //change the bluePointlights within the car, to give it a strange,
+                    //but intresting colour array
+                    bluePointCar.intensity = 1;
+                    //add it to the car
+                    carGroup.add(bluePointCar);
+                    //update the materials because of this new light
+                    needsUpdate();
+                    //make the camera look at a 3d object that is place in front of the car
+                    camera.lookAt(camTarg.position);
+                    //add it to the group so that it will move with the car
+                    carGroup.add(camera);
+                    //set the postion.
+                    camera.position.y = +16;
+
+                }
+//the camera for overview of the scene
+                function aboveCar() {
+
+                    //set the bluePointlight that would be 1 back to 0
+                    bluePointCar.intensity = 0;
+                    //create new camera
+                    camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+                    //set the camera postion to be out and above the scene, so you can see everything
+                    camera.position.x = -350;
+                    camera.position.y = 100;
+                    camera.position.z = 50;
+                    //make the camera look at the group
+                    camera.lookAt(carGroup.position);
+//update the scene because of camera change
+                    needsUpdate();
+
+                }
+                //the camera that will give a 3rd person look above the car
+                function thridPerson() {
+                    //remove it from the group
+                    carGroup.remove(camera);
+                    //change the pointlight back to 0
+                    bluePoint.intensity = 0;
+                    //create new camera overriding the orignal
+                    camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+                    //adding camera to group
+                    carGroup.add(camera);
+                    //positiing camera above the car and behind it
+                    camera.position.y = +50;
+                    camera.position.x = +50;
+                    //make the camera look at the target the headlights would look at
+                    //this gives a much better view
+                    camera.lookAt(targ[1].position);
+                    //update the scene
+                    needsUpdate();
+                }
+//the function that enables trackball controls
+                function cameraFreedom() {
+                    //add trackballcontrols to the camera
+                    controlsCam = new THREE.TrackballControls(camera);
+                    //set the speed of these controls 
+                    controlsCam.rotateSpeed = 2.0;
+                    controlsCam.zoomSpeed = 2.0;
+                    controlsCam.panSpeed = 2.0;
+                    //dont let it move staticly
+                    controlsCam.staticMoving = false;
+                    //controlsCam.enabled = true;
+                    carGroup.remove(camera);
+                }
+                //get rid of trackball controls
+                function removeCameraFreedom() {
+                    //removes trackball controls
+                    carGroup.remove(controlsCam);
+                }
+                //the function that gives stats on the scene
+                function initStats() {
+
+                    var stats = new Stats();
+
+                    stats.setMode(0); // 0: fps, 1: ms
+                    // Align top-left
+                    stats.domElement.style.position = 'absolute';
+                    stats.domElement.style.left = '0px';
+                    stats.domElement.style.top = '0px';
+
+                    $("#Stats-output").append(stats.domElement);
+
+                    return stats;
+                }
+
+                // add the output of the renderer to the html element
+                $("#WebGL-output").append(renderer.domElement);
+
+            });
+
+
+
+        </script>
+    </body>
+</html>
